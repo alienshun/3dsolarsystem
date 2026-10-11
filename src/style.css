@@ -1,0 +1,245 @@
+:root {
+  --panel-bg: rgba(10, 16, 32, 0.72);
+  --panel-border: rgba(120, 160, 255, 0.25);
+  --text-main: #dce6ff;
+  --text-dim: #8fa3cc;
+  --accent: #5b8cff;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--text-main);
+}
+
+#app { position: relative; width: 100%; height: 100%; }
+
+#scene-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.panel {
+  position: absolute;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 10;
+  font-size: 13px;
+}
+
+.panel-title {
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.panel-subtitle {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 10px 0 4px;
+  letter-spacing: 0.06em;
+}
+
+/* 标题 */
+#title-bar {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 5;
+  pointer-events: none;
+}
+#title-bar h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  text-shadow: 0 0 18px rgba(90, 140, 255, 0.6);
+}
+#title-bar .subtitle {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.15em;
+}
+
+/* 时间面板 */
+#time-panel { left: 16px; bottom: 52px; width: 320px; }
+.time-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.time-row.small { justify-content: space-between; font-size: 10px; color: var(--text-dim); }
+.btn-icon {
+  background: rgba(90, 140, 255, 0.15);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  width: 34px; height: 30px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn-icon:hover { background: rgba(90, 140, 255, 0.3); }
+.btn-icon.active { background: rgba(90, 140, 255, 0.5); }
+.rate-display { flex: 1; text-align: center; font-variant-numeric: tabular-nums; }
+#rate-slider { width: 100%; accent-color: var(--accent); cursor: pointer; }
+#date-input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 4px 6px;
+  font-size: 12px;
+  color-scheme: dark;
+}
+.btn {
+  background: rgba(90, 140, 255, 0.2);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.btn:hover { background: rgba(90, 140, 255, 0.35); }
+.sim-date { font-variant-numeric: tabular-nums; color: var(--accent); font-size: 14px; }
+
+/* 天体导航 */
+#body-panel { left: 16px; top: 16px; width: 190px; max-height: calc(100% - 320px); display: flex; flex-direction: column; }
+.body-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+.body-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.body-item:hover { background: rgba(90, 140, 255, 0.15); }
+.body-item.selected { background: rgba(90, 140, 255, 0.3); }
+.body-item .dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.body-item.moon { padding-left: 22px; font-size: 12px; color: var(--text-dim); }
+.body-item.moon:hover { color: var(--text-main); }
+.orbit-toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 9px;
+  line-height: 1;
+  padding: 3px 4px;
+  opacity: 0.45;
+}
+.body-item:hover .orbit-toggle { opacity: 0.95; }
+.orbit-toggle.off { color: var(--text-dim); opacity: 0.3; }
+.group-title {
+  margin: 6px 0 2px;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  border-top: 1px solid var(--panel-border);
+  padding-top: 5px;
+}
+.group-title:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+.check-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-dim);
+  margin: 4px 0;
+  cursor: pointer;
+}
+.check-row input { accent-color: var(--accent); }
+
+/* 信息卡 */
+#info-card { right: 16px; top: 16px; width: 300px; max-height: calc(100% - 90px); overflow-y: auto; }
+#info-card.hidden { display: none; }
+.btn-close {
+  position: absolute;
+  top: 8px; right: 10px;
+  background: none; border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn-close:hover { color: var(--text-main); }
+.info-title { font-size: 18px; font-weight: 600; }
+.info-type { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.info-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 12px;
+  font-size: 12px;
+}
+.info-grid .k { color: var(--text-dim); }
+.info-grid .v { text-align: right; font-variant-numeric: tabular-nums; }
+.info-fact {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  border-top: 1px solid var(--panel-border);
+  padding-top: 8px;
+}
+
+/* 底部 */
+#help-bar {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--text-dim);
+  z-index: 5;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#credit {
+  position: absolute;
+  bottom: 28px;
+  right: 12px;
+  font-size: 10px;
+  color: rgba(143, 163, 204, 0.55);
+  z-index: 5;
+  pointer-events: none;
+}
+#credit a {
+  pointer-events: auto;
+  color: inherit;
+}
+
+/* 天体标签 */
+.body-label {
+  color: rgba(220, 230, 255, 0.85);
+  font-size: 11px;
+  text-shadow: 0 0 6px #000, 0 0 3px #000;
+  cursor: pointer;
+  user-select: none;
+  transform: translateY(-14px);
+  white-space: nowrap;
+}
+.body-label.moon { font-size: 10px; color: rgba(160, 180, 220, 0.7); }
+.body-label.selected { color: #fff; font-weight: 600; }
+.body-label.sun { color: #ffdca8; }
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(120, 160, 255, 0.3); border-radius: 3px; }

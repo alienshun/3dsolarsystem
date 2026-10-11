@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>太阳系模拟器 · Solar System Simulator</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene-canvas"></canvas>
+
+    <!-- 顶部标题 -->
+    <div id="title-bar">
+      <h1>太阳系模拟器</h1>
+      <span class="subtitle">开普勒力学 · JPL 根数 · Three.js</span>
+    </div>
+
+    <!-- 左下：时间控制 -->
+    <div id="time-panel" class="panel">
+      <div class="panel-title">时间控制</div>
+      <div class="time-row">
+        <button id="btn-reverse" class="btn-icon" title="倒放">⏪</button>
+        <button id="btn-pause" class="btn-icon" title="暂停 / 继续">⏸</button>
+        <div class="rate-display"><span id="rate-label">1 天 / 秒</span></div>
+      </div>
+      <input id="rate-slider" type="range" min="0" max="1000" value="500" />
+      <div class="time-row small">
+        <span>1 秒/秒</span><span id="rate-mid">—</span><span>1 年/秒</span>
+      </div>
+      <div class="time-row">
+        <input id="date-input" type="datetime-local" step="1" />
+        <button id="btn-now" class="btn" title="回到现在">现在</button>
+      </div>
+      <div class="time-row">
+        <span id="sim-date" class="sim-date">—</span>
+      </div>
+    </div>
+
+    <!-- 左上：天体列表 + 视角 -->
+    <div id="body-panel" class="panel">
+      <div class="panel-title">天体导航</div>
+      <div id="body-list" class="body-list"></div>
+      <div class="panel-subtitle">显示</div>
+      <label class="check-row"><input id="chk-orbits" type="checkbox" checked /> 轨道线</label>
+      <label class="check-row"><input id="chk-labels" type="checkbox" checked /> 天体名称</label>
+      <label class="check-row"><input id="chk-moons" type="checkbox" checked /> 卫星系统</label>
+      <label class="check-row"><input id="chk-belt" type="checkbox" checked /> 小行星带</label>
+      <label class="check-row"><input id="chk-gr" type="checkbox" checked /> 广义相对论（水星进动）</label>
+      <label class="check-row"><input id="chk-true" type="checkbox" /> 真实比例（1:1）</label>
+    </div>
+
+    <!-- 右侧：信息卡 -->
+    <div id="info-card" class="panel hidden">
+      <button id="info-close" class="btn-close">✕</button>
+      <div id="info-title" class="info-title">—</div>
+      <div id="info-type" class="info-type">—</div>
+      <div class="panel-subtitle">实时状态</div>
+      <div id="info-live" class="info-grid"></div>
+      <div class="panel-subtitle">物理参数</div>
+      <div id="info-physical" class="info-grid"></div>
+      <div id="info-fact" class="info-fact"></div>
+    </div>
+
+    <!-- 底部提示 -->
+    <div id="help-bar">
+      拖拽旋转 · 滚轮缩放 · 右键平移 · 点击天体查看数据 · 双击空白处取消跟随
+    </div>
+
+    <div id="credit">数据来源：JPL / NASA NSSDCA · 贴图：<a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener">Solar System Scope</a>（<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>，源自 NASA/USGS）· 形状模型：<a href="https://nasa3d.arc.nasa.gov/" target="_blank" rel="noopener">NASA 3D Resources</a></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

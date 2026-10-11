@@ -1,0 +1,5 @@
+node_modules/
+dist/
+scripts/.validate-bundle.mjs
+shots/
+3dsolarsystem.md
