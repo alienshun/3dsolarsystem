@@ -11,6 +11,8 @@ import { SMALL_BODIES } from "../data/sbdb";
 import { displayRadius, moonRingRadius, toDisplay } from "./scale";
 import { orbitalSpeed } from "../core/kepler";
 import { REAL_TEXTURES } from "./textures";
+import { addAtmosphere, addUranusRings } from "./atmosphere";
+import { addMagnetosphere } from "./magnetosphere";
 
 export type BodyKind = "star" | "planet" | "moon" | "dwarf" | "comet" | "asteroid";
 
@@ -53,6 +55,10 @@ export interface SimBody {
   /** LOD 远距回落用低面数球 */
   proxyGeo?: THREE.BufferGeometry | null;
   shapeLod?: "shape" | "proxy";
+  /** 大气 rim 壳 / 云层球 / 磁场线组（阶段 3；可见性由 state 控制） */
+  atmoMesh?: THREE.Mesh | null;
+  cloudMesh?: THREE.Mesh | null;
+  magGroup?: THREE.Group | null;
 }
 
 export interface BodyRegistry {
@@ -342,6 +348,7 @@ export function buildBodies(world: THREE.Object3D): BodyRegistry {
     tiltGroup.add(mesh);
     pivot.add(tiltGroup);
     if (p.id === "saturn") addRings(tiltGroup, dispR);
+    if (p.id === "uranus") addUranusRings(tiltGroup, dispR);
     world.add(pivot);
     const b: SimBody = {
       id: p.id, name: p.name, nameEn: p.nameEn, kind: "planet", color: p.color,
@@ -353,6 +360,8 @@ export function buildBodies(world: THREE.Object3D): BodyRegistry {
     };
     byId.set(b.id, b); all.push(b); planets.push(b);
     moonsOf.set(b.id, []);
+    addAtmosphere(b, tiltGroup);
+    addMagnetosphere(b, tiltGroup);
   });
 
   // 卫星：先算每个系统 a 范围 → 环带半径
@@ -471,6 +480,9 @@ export function setScaleMode(reg: BodyRegistry, mode: ScaleMode) {
     const r = mode === "true" ? b.radiusKm : displayRadius(b.radiusKm);
     b.dispR = r;
     b.mesh.scale.setScalar(r);
+    if (b.atmoMesh) b.atmoMesh.scale.setScalar(r * 1.06);
+    if (b.cloudMesh) b.cloudMesh.scale.setScalar(r * 1.015);
+    if (b.magGroup) b.magGroup.scale.setScalar(r);
     b.pivot.traverse((o) => {
       const sprite = o as THREE.Sprite;
       if (sprite.isSprite) sprite.scale.setScalar(r * 5);

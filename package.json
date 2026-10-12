@@ -11,6 +11,7 @@
     "validate:positions": "esbuild scripts/validate-entry.ts --bundle --format=esm --outfile=scripts/.validate-bundle.mjs && node scripts/.validate-bundle.mjs"
   },
   "dependencies": {
+    "satellite.js": "^5.0.0",
     "three": "^0.170.0"
   },
   "devDependencies": {

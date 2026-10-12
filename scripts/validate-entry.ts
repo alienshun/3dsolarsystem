@@ -14,7 +14,7 @@ import { PLANETS } from "../src/data/planets";
 import { SMALL_BODIES } from "../src/data/sbdb";
 import { planetHeliocentric } from "../src/core/elements";
 import { solveKepler } from "../src/core/kepler";
-import { grPerihelionArcsecPerCy } from "../src/core/relativity";
+import { grPerihelionArcsecPerCy, gpsClockOffsetUsPerDay, LIGHT_MIN_PER_AU } from "../src/core/relativity";
 import { julianCenturies } from "../src/core/time";
 
 const DEG = Math.PI / 180;
@@ -184,6 +184,24 @@ const angDiff = (a: number, b: number) => {
     const okMax = Math.abs(rMax - a * (1 + e)) / a < 0.005;
     report(okMin && okMax, `g) ${s.nameEn} 向径范围：[${rMin.toFixed(4)}, ${rMax.toFixed(4)}] AU vs a(1±e)=[${(a * (1 - e)).toFixed(4)}, ${(a * (1 + e)).toFixed(4)}] AU（P=${periodDays.toFixed(0)} d）`);
   }
+}
+
+/* ── h) GR 深度 C：GPS 星载钟相对地表钟 ≈ +38.6 μs/天 ── */
+{
+  const us = gpsClockOffsetUsPerDay();
+  report(Math.abs(us - 38.6) < 0.6, `h) GPS 钟差：${us.toFixed(2)} μs/天 vs 公认 +38.6 μs/天`);
+}
+
+/* ── i) 光行时与表观位置：日→木星 ≈ 43 min；表观偏移量级 = v·r/c ── */
+{
+  const jup = PLANETS.find((p) => p.id === "jupiter")!;
+  const jd = 2451545.0;
+  const st = planetHeliocentric(jup.elements, jd);
+  const ltMin = st.rAU * LIGHT_MIN_PER_AU;
+  report(ltMin > 40 && ltMin < 45, `i) 木星光行时（自太阳）：${ltMin.toFixed(1)} min（规格验收 ≈ 40 min 量级）`);
+  const st2 = planetHeliocentric(jup.elements, jd - ltMin / 1440);
+  const dKm = Math.hypot(st.x - st2.x, st.y - st2.y, st.z - st2.z) * 149597870.7;
+  report(dKm > 2e4 && dKm < 5e4, `i) 木星表观−真实位置偏移：${(dKm / 1e3).toFixed(1)} 千 km（v·r/c 量级自洽）`);
 }
 
 console.log(failures === 0 ? "\n全部校验通过 ✓" : `\n${failures} 项未通过 ✗`);

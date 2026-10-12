@@ -59,16 +59,6 @@ export function solveKepler(M: number, e: number): number {
   return E;
 }
 
-/**
- * 由偏近点角求真近点角 ν（弧度）与向径 r（与 a 同单位）。
- * tan(ν/2) = √((1+e)/(1−e))·tan(E/2)；r = a(1 − e·cosE)
- */
-export function trueAnomaly(E: number, e: number): { nu: number; r: number } {
-  const halfE = E / 2;
-  const nu = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(halfE), Math.sqrt(1 - e) * Math.cos(halfE));
-  return { nu, r: NaN }; // r 由调用者用 a(1-e·cosE) 计算，避免重复传 a
-}
-
 /** vis-viva 轨道速度（km/s）：v = √(GM(2/r − 1/a))，r/a 单位 km */
 export function orbitalSpeed(GM: number, rKm: number, aKm: number): number {
   return Math.sqrt(GM * (2 / rKm - 1 / aKm));

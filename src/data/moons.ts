@@ -144,8 +144,8 @@ export const MOONS: MoonDef[] = [
   {
     id: "triton", name: "海卫一", nameEn: "Triton", parent: "neptune",
     color: 0xc9c2d4, radiusKm: 1353.4, rotationHours: -141.0, massKg: 2.139e22,
-    // 逆行轨道：i=156.9°（相对海王星赤道），M 随逆行方向递减由 retrograde 标记处理
-    elements: { aKm: 354759, e: 0.000016, iDeg: 156.885, periodDays: 5.876854, nodeDeg: 0, argPeriDeg: 0, M0Deg: 0, retrograde: true },
+    // 逆行轨道：i=156.9°（>90°，相对海王星赤道），标准旋转公式自动产生逆行，无需额外标记
+    elements: { aKm: 354759, e: 0.000016, iDeg: 156.885, periodDays: 5.876854, nodeDeg: 0, argPeriDeg: 0, M0Deg: 0 },
     fact: "太阳系唯一逆行的大型卫星，几乎可以肯定是被俘获的柯伊伯带天体。南极有氮冰间歇泉。",
   },
 ];

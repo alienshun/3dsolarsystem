@@ -20,3 +20,23 @@ export function grPerihelionDegPerCy(aAU: number, e: number): number {
 export function grPerihelionArcsecPerCy(aAU: number, e: number): number {
   return grPerihelionDegPerCy(aAU, e) * 3600;
 }
+
+/* ── 深度 C：时钟膨胀与光行时（规格 §4.5-C） ── */
+
+const GM_EARTH = 398600.4418; // km³/s²
+
+/** 1 AU 光行时（分钟） */
+export const LIGHT_MIN_PER_AU = KM_PER_AU / C / 60;
+
+/** 固有时率偏差 dτ/dt − 1 ≈ −GM/(rc²) − v²/(2c²)（r [km]、v [km/s]） */
+export function clockRateDeviation(rKm: number, vKmS: number, gmKm3S2: number = GM_SUN): number {
+  return -gmKm3S2 / (rKm * C * C) - (vKmS * vKmS) / (2 * C * C);
+}
+
+/** GPS 星载钟相对地表钟偏移 ≈ +38.6 μs/天（引力蓝移 +45.6 − 速度钟慢 −7.0） */
+export function gpsClockOffsetUsPerDay(): number {
+  const rGps = 26562, vGps = 3.874; // 中圆轨道 20180 km 高度
+  const rSurf = 6371, vSurf = 0.465; // 赤道自转速度
+  const d = clockRateDeviation(rGps, vGps, GM_EARTH) - clockRateDeviation(rSurf, vSurf, GM_EARTH);
+  return d * 86400 * 1e6;
+}

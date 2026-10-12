@@ -17,12 +17,17 @@ import { applyRealTextures } from "./render/textures";
 import { Labels } from "./render/labels";
 import { setupUI, type SimState } from "./ui/controls";
 import { InfoCard } from "./ui/infocard";
+import { setupSatPanel } from "./ui/satpanel";
+import { SatelliteCloud } from "./render/satellites";
+import { parse3le, isFeatured, FEATURED, type TleEntry } from "./data/tle";
+import { getCache, putCache, loadSnapshot, refreshOnline } from "./core/tlestore";
+import { gstime } from "satellite.js";
 import { PLANETS } from "./data/planets";
 import { MOONS } from "./data/moons";
 import { SMALL_BODIES } from "./data/sbdb";
-import { planetHeliocentric, moonRelative } from "./core/elements";
-import { grPerihelionDegPerCy } from "./core/relativity";
-import { dateToJD, daysSinceJ2000 } from "./core/time";
+import { planetHeliocentric, moonRelative, type PlanetElements } from "./core/elements";
+import { grPerihelionDegPerCy, LIGHT_MIN_PER_AU } from "./core/relativity";
+import { dateToJD, daysSinceJ2000, jdToDate } from "./core/time";
 
 const canvas = document.getElementById("scene-canvas") as HTMLCanvasElement;
 const kit = createScene(canvas);
@@ -46,6 +51,9 @@ const state: SimState = {
   grEnabled: true,
   showBelt: true,
   orbitOff: new Set<string>(),
+  apparent: false,
+  showAtmo: true,
+  showMag: false,
 };
 
 /* ─────────────────────────── 物理层（纯函数） ─────────────────────────── */
@@ -54,11 +62,22 @@ function grRate(a: number, e: number): number {
   return state.grEnabled ? grPerihelionDegPerCy(a, e) : 0;
 }
 
+/** 日心状态；表观位置模式取 t − r/c 时刻（光行时，迭代 1 次，规格 §4.5-C） */
+function helioState(el: PlanetElements, jd: number) {
+  const gr = grRate(el.a, el.e);
+  let st = planetHeliocentric(el, jd, gr);
+  if (state.apparent) {
+    const ltDays = (st.rAU * LIGHT_MIN_PER_AU) / 1440;
+    st = planetHeliocentric(el, jd - ltDays, gr);
+  }
+  return st;
+}
+
 function updatePhysics(jd: number) {
   const dJ2000 = daysSinceJ2000(jd);
   PLANETS.forEach((p) => {
     const b = reg.byId.get(p.id)!;
-    const st = planetHeliocentric(p.elements, jd, grRate(p.elements.a, p.elements.e));
+    const st = helioState(p.elements, jd);
     b.helioAU.set(st.x, st.y, st.z);
     b.rAU = st.rAU;
     b.aAU = st.aAU;
@@ -66,7 +85,7 @@ function updatePhysics(jd: number) {
   });
   SMALL_BODIES.forEach((s) => {
     const b = reg.byId.get(s.id)!;
-    const st = planetHeliocentric(s.elements, jd, grRate(s.elements.a, s.elements.e));
+    const st = helioState(s.elements, jd);
     b.helioAU.set(st.x, st.y, st.z);
     b.rAU = st.rAU;
     b.aAU = st.aAU;
@@ -80,7 +99,10 @@ function updatePhysics(jd: number) {
   if (state.trueScale) applyTruePositions(reg);
   else applyDisplayPositions(reg);
   // 自转（显示层旋转，物理无关）
-  for (const b of reg.all) b.mesh.rotation.y = spinAngle(b, dJ2000);
+  for (const b of reg.all) {
+    b.mesh.rotation.y = spinAngle(b, dJ2000);
+    if (b.cloudMesh) b.cloudMesh.rotation.y = b.mesh.rotation.y * 1.08 + 0.7;
+  }
 }
 
 /* ─────────────────────────── 选中 / 跟随 / 拾取 ─────────────────────────── */
@@ -118,13 +140,159 @@ function applyVisibility() {
   orbits.setVisible(state.showOrbits, state.showOrbits && state.showMoons);
   for (const b of reg.all) {
     if (b.id !== reg.sun.id) orbits.setBodyOrbit(b.id, !state.orbitOff.has(b.id));
+    if (b.atmoMesh) b.atmoMesh.visible = state.showAtmo;
+    if (b.cloudMesh) b.cloudMesh.visible = state.showAtmo;
+    if (b.magGroup) b.magGroup.visible = state.showMag;
   }
   for (const m of reg.moons) m.pivot.visible = state.showMoons;
   belt.setVisible(state.showBelt);
 }
 applyVisibility();
 
-// 深链：?follow=<id> 跟随指定天体；?true=1 真实比例（分享视角与自动化测试用）
+/* ─────────────────────────── 人造卫星层（阶段 4） ─────────────────────────── */
+
+const sats = new SatelliteCloud(kit.scene);
+let showSats = true;
+let satConst = FEATURED;
+let satQuery = "";
+let satEntries: TleEntry[] = [];
+let satWorker: Worker | null = null;
+let satBuf: Float32Array | null = null;
+let lastPropReq = 0;
+let selectedSatNorad: string | null = null;
+let pendingSatNorad: string | null = null;
+let stressMode = false;
+
+const EARTH_R_KM = 6371;
+const earthBody = () => reg.byId.get("earth")!;
+const kmToScene = () => (state.trueScale ? 1 : earthBody().dispR / EARTH_R_KM);
+// 屏幕空间恒定点径（约 6px）：随相机到地球距离自适应，缩放时卫星始终可见，
+// 不再因世界尺寸固定而在远景缩成亚像素。
+const dotSize = () => {
+  const d = kit.camera.position.distanceTo(earthBody().rootPos);
+  const halfFovTan = Math.tan((kit.camera.fov * Math.PI) / 360);
+  const s = (6 * d * halfFovTan) / window.innerHeight;
+  return Math.max(s, state.trueScale ? 1 : earthBody().dispR * 0.004);
+};
+const jdToMs = (jd: number) => jdToDate(jd).getTime();
+
+function satMatches(e: TleEntry): boolean {
+  if (satConst === FEATURED) {
+    if (!isFeatured(e.name)) return false;
+  } else if (satConst !== "全部" && e.constellation !== satConst) return false;
+  if (satQuery) {
+    const q = satQuery.toLowerCase();
+    if (!e.name.toLowerCase().includes(q) && !e.norad.includes(q)) return false;
+  }
+  return true;
+}
+
+function applySatFilter() {
+  const mask = new Uint8Array(satEntries.length);
+  for (let i = 0; i < satEntries.length; i++) mask[i] = satMatches(satEntries[i]) ? 1 : 0;
+  sats.setMask(mask);
+  sats.setDotSize(dotSize());
+  satPanel.setCount(satEntries.length ? `${sats.visibleCount} / ${satEntries.length} 颗` : "—");
+}
+
+function requestOrbit(norad: string) {
+  const e = satEntries.find((x) => x.norad === norad);
+  if (!e || !satWorker) return;
+  const revPerDay = parseFloat(e.line1.slice(52, 63));
+  const periodMin = revPerDay > 0 ? 1440 / revPerDay : 100;
+  satWorker.postMessage({ type: "orbit", norad, timeMs: jdToMs(state.jd), minutes: periodMin, samples: 160 });
+  const ageDays = (Date.now() - e.epochMs) / 86400000;
+  satPanel.setWarn(ageDays > 30 ? `TLE 历元已 ${ageDays.toFixed(0)} 天，SGP4 精度随时间下降` : null);
+}
+
+function onSatMsg(ev: MessageEvent) {
+  const msg = ev.data as { type: string; count?: number; buf?: Float32Array; norad?: string };
+  if (msg.type === "ready") {
+    sats.rebuild(msg.count ?? 0);
+    applySatFilter();
+    sats.setVisible(showSats);
+    if (pendingSatNorad) {
+      selectedSatNorad = pendingSatNorad;
+      pendingSatNorad = null;
+      satPanel.markSelected(selectedSatNorad);
+      requestOrbit(selectedSatNorad);
+      // 选中卫星时拉远取景，容纳 LEO→GEO 壳层与精轨线
+      if (state.trueScale) {
+        _dir.copy(kit.camera.position);
+        if (_dir.lengthSq() < 1e-12) _dir.set(0, 0, 1);
+        _dir.normalize();
+        kit.controls.target.set(0, 0, 0);
+        kit.camera.position.copy(_dir).multiplyScalar(earthBody().dispR * 12);
+      }
+    }
+  } else if (msg.type === "positions" && msg.buf) {
+    satBuf = msg.buf;
+  } else if (msg.type === "orbit" && msg.buf && msg.norad === selectedSatNorad) {
+    sats.setOrbitLine(msg.buf, gstime(state.jd), earthBody().rootPos, kmToScene());
+  }
+}
+
+function initSats(text: string) {
+  satEntries = parse3le(text);
+  if (stressMode) {
+    const base = satEntries.slice();
+    while (satEntries.length < 10000) satEntries.push(...base.map((e) => ({ ...e })));
+    satEntries = satEntries.slice(0, 10000);
+  }
+  satBuf = null;
+  selectedSatNorad = null;
+  sats.clearOrbitLine();
+  if (satWorker) satWorker.terminate();
+  satWorker = new Worker(new URL("./workers/satprop.ts", import.meta.url), { type: "module" });
+  satWorker.onmessage = onSatMsg;
+  satWorker.onerror = (e) => console.error("[satprop] worker error:", e.message);
+  satWorker.postMessage({
+    type: "init",
+    names: satEntries.map((e) => e.name),
+    line1: satEntries.map((e) => e.line1),
+    line2: satEntries.map((e) => e.line2),
+    norad: satEntries.map((e) => e.norad),
+  });
+}
+
+const satPanel = setupSatPanel({
+  onSearch: (q) => {
+    satQuery = q;
+    applySatFilter();
+    satPanel.setResults(q ? satEntries.filter(satMatches).slice(0, 40).map((e) => ({ norad: e.norad, name: e.name, constellation: e.constellation })) : []);
+  },
+  onConst: (c) => { satConst = c; applySatFilter(); },
+  onToggle: (v) => { showSats = v; sats.setVisible(v); },
+  onRefresh: async () => {
+    satPanel.setRefreshing(true);
+    try {
+      const text = await refreshOnline();
+      await putCache(text);
+      initSats(text);
+      satPanel.setWarn(null);
+    } catch (err) {
+      satPanel.setWarn(`在线刷新失败：${(err as Error).message}`);
+    } finally {
+      satPanel.setRefreshing(false);
+    }
+  },
+  onPick: (norad) => {
+    selectedSatNorad = norad;
+    satPanel.markSelected(norad);
+    requestOrbit(norad);
+  },
+});
+
+(async () => {
+  let text: string | null = null;
+  const cache = await getCache();
+  if (cache?.text) text = cache.text;
+  if (!text) {
+    try { text = await loadSnapshot(import.meta.env.BASE_URL); } catch { text = null; }
+  }
+  if (text) initSats(text);
+})();
+
 // 屏幕空间拾取（保底像素半径，不对微小网格做 3D 射线；规格 §4.2）
 const _proj = new THREE.Vector3();
 function pickAt(sx: number, sy: number): SimBody | null {
@@ -190,6 +358,7 @@ function applyScaleMode() {
   _dir.normalize();
   setScaleMode(reg, mode);
   orbits.setMode(mode);
+  sats.setDotSize(dotSize());
   updatePhysics(state.jd); // 先按新模式算一帧位置，重定位用新坐标
   const fb = state.followId ? reg.byId.get(state.followId) : null;
   if (state.trueScale) {
@@ -237,6 +406,18 @@ if (qs.get("true") === "1") {
   (document.getElementById("chk-true") as HTMLInputElement).checked = true;
   applyScaleMode();
 }
+if (qs.get("apparent") === "1") {
+  state.apparent = true;
+  (document.getElementById("chk-apparent") as HTMLInputElement).checked = true;
+}
+if (qs.get("mag") === "1") {
+  state.showMag = true;
+  (document.getElementById("chk-mag") as HTMLInputElement).checked = true;
+  applyVisibility();
+}
+const qsSat = qs.get("sat");
+if (qsSat) pendingSatNorad = qsSat;
+if (qs.get("stress") === "1") stressMode = true;
 
 /* ─────────────────────────── 主循环 ─────────────────────────── */
 
@@ -294,6 +475,17 @@ function frame() {
 
   orbits.update(state.jd, state.trueScale ? originTrue : ORIGIN_ZERO);
   belt.update(state.jd, state.trueScale ? originTrue : ORIGIN_ZERO, state.trueScale);
+
+  // 人造卫星：Worker 节流请求传播（~8Hz），主线程每帧用最新位置更新点云
+  if (showSats && satBuf && satWorker) {
+    const nowMs = performance.now();
+    if (nowMs - lastPropReq > 120) {
+      lastPropReq = nowMs;
+      satWorker.postMessage({ type: "prop", timeMs: jdToMs(state.jd) });
+    }
+    sats.setDotSize(dotSize()); // 屏幕空间恒定点径，随缩放自适应
+    sats.update(satBuf, gstime(state.jd), earthBody().rootPos, kmToScene());
+  }
 
   // 跟随（观赏模式）：相机与目标整体平移，保留用户当前视角；
   // 真实比例模式由浮动原点承担，无需此步

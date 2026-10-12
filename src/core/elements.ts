@@ -28,7 +28,6 @@ export interface MoonElements {
   nodeDeg: number;    // Ω
   argPeriDeg: number; // ω
   M0Deg: number;      // J2000 平近点角
-  retrograde?: boolean;
 }
 
 export interface HeliocentricState {

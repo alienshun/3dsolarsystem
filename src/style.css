@@ -243,3 +243,44 @@ html, body {
 /* 滚动条 */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: rgba(120, 160, 255, 0.3); border-radius: 3px; }
+
+/* 人造卫星面板 */
+#sat-search, .sat-select {
+  width: 100%;
+  margin: 4px 0;
+  padding: 4px 6px;
+  background: rgba(20, 30, 55, 0.7);
+  border: 1px solid rgba(120, 160, 255, 0.25);
+  border-radius: 4px;
+  color: #dce6ff;
+  font-size: 12px;
+}
+.sat-results {
+  max-height: 120px;
+  overflow-y: auto;
+  margin-bottom: 4px;
+}
+.sat-results .sat-item {
+  padding: 3px 6px;
+  font-size: 11px;
+  color: #bcd0f5;
+  cursor: pointer;
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sat-results .sat-item:hover { background: rgba(120, 160, 255, 0.2); color: #fff; }
+.sat-results .sat-item.selected { background: rgba(120, 160, 255, 0.35); color: #fff; }
+.sat-warn {
+  margin-top: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  color: #ffd27a;
+  background: rgba(255, 180, 60, 0.12);
+  border: 1px solid rgba(255, 180, 60, 0.35);
+  border-radius: 4px;
+}
+
+/* 通用隐藏 */
+.hidden { display: none !important; }

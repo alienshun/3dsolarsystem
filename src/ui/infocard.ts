@@ -5,6 +5,7 @@
 import type { SimBody } from "../render/bodies";
 import type { BodyRegistry } from "../render/bodies";
 import { eclipticLongitude } from "../render/bodies";
+import { LIGHT_MIN_PER_AU, clockRateDeviation } from "../core/relativity";
 
 const $ = (id: string) => document.getElementById(id)!;
 
@@ -86,6 +87,11 @@ export class InfoCard {
       live.push(["日心距离", `${fmt(b.rAU, 4)} AU（${fmt(b.rAU * 149597870.7 / 1e6, 1)} 百万 km）`]);
       live.push(["轨道速度", `${fmt(b.speedKmS, 2)} km/s`]);
       live.push(["日心黄经", `${fmt(eclipticLongitude(b.helioAU), 2)}°`]);
+      if (b.kind !== "moon") {
+        live.push(["光行时（自太阳）", `${fmt(b.rAU * LIGHT_MIN_PER_AU, 1)} 分钟`]);
+        const dev = clockRateDeviation(b.rAU * 149597870.7, b.speedKmS);
+        live.push(["钟率偏差（GR）", `${fmt(dev * 86400 * 1e6, 0)} μs/天`]);
+      }
       if (b.kind === "moon") {
         live.push(["距母行星", `${fmt(b.relKm.length(), 0)} km`]);
       }

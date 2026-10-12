@@ -25,6 +25,12 @@ export interface SimState {
   showBelt: boolean;
   /** 单独隐藏轨道的天体 id 集合 */
   orbitOff: Set<string>;
+  /** GR 深度 C：表观位置（光行时） */
+  apparent: boolean;
+  /** 大气与云层 */
+  showAtmo: boolean;
+  /** 磁场线 */
+  showMag: boolean;
 }
 
 export interface UIHooks {
@@ -57,6 +63,9 @@ export function setupUI(state: SimState, reg: BodyRegistry, hooks: UIHooks) {
   const chkTrue = $<HTMLInputElement>("chk-true");
   const chkGR = $<HTMLInputElement>("chk-gr");
   const chkBelt = $<HTMLInputElement>("chk-belt");
+  const chkAtmo = $<HTMLInputElement>("chk-atmo");
+  const chkMag = $<HTMLInputElement>("chk-mag");
+  const chkApparent = $<HTMLInputElement>("chk-apparent");
 
   // ── 流速滑杆（对数：1 秒/秒 → 1 年/秒） ──
   rateSlider.value = String(SLIDER_ONE_DAY);
@@ -159,6 +168,9 @@ export function setupUI(state: SimState, reg: BodyRegistry, hooks: UIHooks) {
   chkTrue.addEventListener("change", () => { state.trueScale = chkTrue.checked; hooks.onTrueScale(chkTrue.checked); });
   chkGR.addEventListener("change", () => { state.grEnabled = chkGR.checked; hooks.onGR(chkGR.checked); });
   chkBelt.addEventListener("change", () => { state.showBelt = chkBelt.checked; hooks.onVisibility(); });
+  chkAtmo.addEventListener("change", () => { state.showAtmo = chkAtmo.checked; hooks.onVisibility(); });
+  chkMag.addEventListener("change", () => { state.showMag = chkMag.checked; hooks.onVisibility(); });
+  chkApparent.addEventListener("change", () => { state.apparent = chkApparent.checked; });
 
   // ── 每帧刷新（由 main 调用） ──
   return {

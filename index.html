@@ -47,7 +47,20 @@
       <label class="check-row"><input id="chk-moons" type="checkbox" checked /> 卫星系统</label>
       <label class="check-row"><input id="chk-belt" type="checkbox" checked /> 小行星带</label>
       <label class="check-row"><input id="chk-gr" type="checkbox" checked /> 广义相对论（水星进动）</label>
+      <label class="check-row"><input id="chk-apparent" type="checkbox" /> 表观位置（光行时）</label>
+      <label class="check-row"><input id="chk-atmo" type="checkbox" checked /> 大气与云层</label>
+      <label class="check-row"><input id="chk-mag" type="checkbox" /> 磁场线</label>
       <label class="check-row"><input id="chk-true" type="checkbox" /> 真实比例（1:1）</label>
+      <div class="panel-subtitle">人造卫星</div>
+      <label class="check-row"><input id="chk-sats" type="checkbox" checked /> 卫星点云</label>
+      <input id="sat-search" type="text" placeholder="搜索名称 / NORAD 号" autocomplete="off" />
+      <div id="sat-results" class="sat-results"></div>
+      <select id="sat-const" class="sat-select"></select>
+      <div class="time-row small">
+        <span id="sat-count">—</span>
+        <button id="sat-refresh" class="btn" title="从 CelesTrak 在线刷新 TLE">刷新</button>
+      </div>
+      <div id="sat-warn" class="sat-warn hidden"></div>
     </div>
 
     <!-- 右侧：信息卡 -->
